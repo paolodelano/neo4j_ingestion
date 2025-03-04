@@ -1,0 +1,44 @@
+---
+neo4j:
+  url: # your neo4j uri
+  user: #neo4j user
+  password: ''
+  database: #db name
+queries:
+  pre-load:
+      - CREATE CONSTRAINT nkAddress IF NOT EXISTS FOR(n:Address) REQUIRE n.address IS NODE KEY;
+      - CREATE CONSTRAINT nkCustomer IF NOT EXISTS FOR(n:Customer) REQUIRE n.id IS NODE KEY;
+      - CREATE CONSTRAINT nkEmail IF NOT EXISTS FOR(n:Email) REQUIRE n.email IS NODE KEY;   
+      
+  load:
+    nodes:
+      Address: |
+       WITH $rows AS rows
+       UNWIND rows AS row WITH row
+       WHERE row.address <> '' AND row.address <> 'n/a'
+       MERGE(p:Address {address:row.address})  
+      Customer: |
+         WITH $rows AS rows
+         UNWIND rows AS row
+         MERGE(p:Customer {id:row.sContractNumber})  
+         SET
+         p.name = row.name 
+      Email: |
+         WITH $rows AS rows
+         UNWIND rows AS row
+         MERGE(p:Email {email:row.email})  
+    relationships:
+      CUSTOMER_HAS_ADDRESS: |
+            WITH $rows AS rows
+            UNWIND rows AS row
+            MATCH(a:Customer {id:row.sContractNumber})  
+            MATCH(b:Address {address:row.address})
+            WHERE NOT EXISTS ((a)-[:HAS_ADDRESS]->(b))
+            CREATE (a)-[r:HAS_ADDRESS]->(b)
+      CUSTOMER_HAS_EMAIL: |
+            WITH $rows AS rows
+            UNWIND rows AS row
+            MATCH(a:Customer {id:row.sContractNumber})  
+            MATCH(b:Email {email:row.sCustEmail})
+            WHERE NOT EXISTS ((a)-[:HAS_EMAIL]->(b))
+            CREATE (a)-[r:HAS_EMAIL]->(b)
